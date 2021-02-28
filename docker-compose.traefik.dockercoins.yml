@@ -1,0 +1,115 @@
+#docker network create -d overlay --attachable traefik_default
+#docker stack deploy -c docker-compose.traefik-base.yml traefik
+# docker pull eshnil2000/dockercoins_rng
+# docker pull eshnil2000/dockercoins_hasher
+# docker pull eshnil2000/dockercoins_worker
+# docker pull eshnil2000/dockercoins_webui
+# docker pull redis
+#docker stack deploy -c docker-compose.traefik.dockercoins.yml coins
+
+version: '3.3'
+networks:
+  traefik_default:
+    driver: overlay
+    external:
+      name:  traefik_default
+services:
+  rng:
+    image: eshnil2000/dockercoins_rng
+    hostname: rng
+
+    deploy:
+      placement:
+        constraints:
+          - node.role == worker
+      labels:
+        - traefik.http.routers.rng.rule=Host(`rng.codenovator.net`)
+        - traefik.http.routers.rng.service=rng
+        - traefik.http.services.rng.loadbalancer.server.port=80
+        - traefik.docker.network=traefik_default
+        - "traefik.http.routers.rng.entrypoints=web"
+        - "traefik.enable=true"    
+      replicas: 4
+
+    networks:
+      traefik_default:
+
+  hasher:
+    image: eshnil2000/dockercoins_hasher
+    hostname: hasher
+
+    deploy:
+      placement:
+        constraints:
+          - node.role == worker
+      labels:
+        - traefik.http.routers.hasher.rule=Host(`hasher.codenovator.net`)
+        - traefik.http.routers.hasher.service=hasher
+        - traefik.http.services.hasher.loadbalancer.server.port=80
+        - traefik.docker.network=traefik_default
+        - "traefik.http.routers.hasher.entrypoints=web"
+        - "traefik.enable=true"
+      #replicas: 4
+
+    networks:
+      traefik_default:
+
+  worker:
+    image: eshnil2000/dockercoins_worker
+    hostname: worker
+
+    deploy:
+      placement:
+        constraints:
+          - node.role == worker
+      labels:
+        - traefik.http.routers.worker.rule=Host(`worker.codenovator.net`)
+        - traefik.http.routers.worker.service=worker
+        - traefik.http.services.worker.loadbalancer.server.port=9999
+        - traefik.docker.network=traefik_default
+        - "traefik.http.routers.worker.entrypoints=web"
+        - "traefik.enable=true"
+      #replicas: 4
+
+    networks:
+      traefik_default:
+
+  redis:
+    image: redis
+    hostname: redis
+
+    deploy:
+      placement:
+        constraints:
+          - node.role == worker
+      labels:
+        - traefik.http.routers.redis.rule=Host(`redis`)
+        - traefik.http.routers.redis.service=redis
+        - traefik.http.services.redis.loadbalancer.server.port=9999
+        - traefik.docker.network=traefik_default
+        - "traefik.http.routers.redis.entrypoints=web"
+        - "traefik.enable=true"
+      #replicas: 4
+
+    networks:
+      traefik_default:
+
+  webui:
+    image: eshnil2000/dockercoins_webui
+    hostname: webui
+
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - traefik.http.routers.webui.rule=Host(`webui.codenovator.net`)
+        - traefik.http.routers.webui.service=webui
+        - traefik.http.services.webui.loadbalancer.server.port=80
+        - traefik.docker.network=traefik_default
+        - "traefik.http.routers.webui.entrypoints=web"
+        - "traefik.enable=true"
+      #replicas: 4
+
+    networks:
+      traefik_default:
