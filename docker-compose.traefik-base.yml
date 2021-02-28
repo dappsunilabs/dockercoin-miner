@@ -1,0 +1,97 @@
+version: '3.3'
+networks:
+  traefik_default:
+    driver: overlay
+    external:
+      name:  traefik_default
+services:
+  traefik:
+    hostname: traefik
+    
+    # The latest official supported Traefik docker image
+    image: traefik:v2.3
+    
+    # Enables the Traefik Dashboard and tells Traefik to listen to docker
+    # --providers tell Traefik to connect to the Docker provider
+    # enable --log.level=INFO so we can see what Traefik is doing in the log files
+    #command: --api.insecure=true --providers.docker --log.level=INFO
+    ports:
+      # Exposes port 80 for incomming web requests
+      - "80:80"
+      # The Web UI port http://0.0.0.0:8080 (enabled by --api.insecure=true)
+      - "8080:8080"
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mounts the Traefik static configuration inside the Traefik container
+      - ./traefik.dns.yml:/etc/traefik/traefik.yml
+
+
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "traefik.http.routers.traefik.rule=Host(`traefik.codenovator.net`)"
+        - "traefik.http.routers.traefik.service=api@internal"
+        # Dummy service for Swarm port detection. The port can be any valid integer value.
+        - "traefik.http.services.dummy-svc.loadbalancer.server.port=9999"            
+        - traefik.docker.network=traefik_default
+    #extra_hosts:
+    #  - host.docker.internal:172.17.0.1 
+
+    networks:
+      traefik_default:
+        #external:
+          #name:  traefik_default
+  
+  whoami:
+    image: traefik/whoami
+    #labels:
+    #    - traefik.http.routers.whoami.rule=Host(`whoami.codenovator.net`)
+    #    - traefik.http.routers.whoami.service=whoami
+    #    - traefik.http.services.whoami.loadbalancer.server.port=80
+    #    - traefik.docker.network=traefik_default
+    #    - "traefik.http.routers.whoami.entrypoints=web"
+    deploy:
+    #  placement:
+    #    constraints:
+    #      - node.role == manager
+      labels:
+        - traefik.http.routers.whoami.rule=Host(`whoami.codenovator.net`)
+        - traefik.http.routers.whoami.service=whoami
+        - traefik.http.services.whoami.loadbalancer.server.port=80
+        - traefik.docker.network=traefik_default
+        - "traefik.http.routers.whoami.entrypoints=web"
+        - "traefik.enable=true"    
+      replicas: 4
+
+    networks:
+      traefik_default:
+
+  visualizer:
+    image: dockersamples/visualizer
+    #labels:
+    #    - traefik.http.routers.whoami.rule=Host(`whoami.codenovator.net`)
+    #    - traefik.http.routers.whoami.service=whoami
+    #    - traefik.http.services.whoami.loadbalancer.server.port=80
+    #    - traefik.docker.network=traefik_default
+    #    - "traefik.http.routers.whoami.entrypoints=web"
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - traefik.http.routers.visualizer.rule=Host(`visualizer.codenovator.net`)
+        - traefik.http.routers.visualizer.service=visualizer
+        - traefik.http.services.visualizer.loadbalancer.server.port=8080
+        - traefik.docker.network=traefik_default
+        - "traefik.http.routers.visualizer.entrypoints=web"
+        - "traefik.enable=true"
+      #replicas: 4
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    networks:
+      traefik_default:
